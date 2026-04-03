@@ -1,0 +1,44 @@
+scan-to-epub License
+====================
+
+SPDX-License-Identifier: AGPL-3.0-or-later
+
+Copyright (C) 2026 scan-to-epub contributors
+
+This project is licensed under the GNU Affero General Public License,
+version 3 or (at your option) any later version.
+
+Why AGPL here?
+--------------
+
+This repository depends on `EbookLib`, which is distributed under
+AGPLv3+ (GNU Affero General Public License v3 or later).
+To map restrictive/copyleft obligations clearly at repository level,
+this project is licensed as AGPL-3.0-or-later.
+
+Third-party dependency license mapping
+--------------------------------------
+
+- docling: MIT
+- streamlit: Apache-2.0
+- Markdown (python-markdown): BSD-3-Clause
+- EbookLib: AGPL-3.0-or-later
+
+The above licenses are compatible with distributing this project under
+AGPL-3.0-or-later, while preserving the strongest copyleft requirement.
+
+AGPL-3.0-or-later terms
+-----------------------
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
