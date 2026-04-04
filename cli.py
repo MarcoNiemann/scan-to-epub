@@ -11,7 +11,7 @@ from scan_to_epub import (
     extract_pages,
     find_images,
 )
-from scan_to_epub.config import OUTPUT_DIRNAME
+from scan_to_epub.config import DEFAULT_OCR_BACKEND, OUTPUT_DIRNAME
 
 
 def _print_result(result: ExtractionResult) -> None:
@@ -22,6 +22,35 @@ def _print_result(result: ExtractionResult) -> None:
     else:
         print(f"Saved markdown to: {result.image_name}.md")
         print(result.markdown_text)
+
+
+def _parse_ocr_languages(values: list[str] | None) -> str | list[str] | None:
+    """Normalize CLI OCR language arguments.
+
+    ``None`` keeps extractor defaults. ``auto`` opts into Docling's automatic
+    OCR mode. Otherwise values are treated as language codes and may be
+    provided repeatedly or comma-separated.
+    """
+    if not values:
+        return None
+
+    language_codes: list[str] = []
+    for value in values:
+        language_codes.extend(
+            code.strip().lower() for code in value.split(",") if code.strip()
+        )
+
+    if not language_codes:
+        raise ValueError("--ocr-language requires at least one language code")
+
+    if "auto" in language_codes:
+        if len(language_codes) > 1:
+            raise ValueError(
+                "--ocr-language auto cannot be combined with explicit language codes"
+            )
+        return "auto"
+
+    return language_codes
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -47,6 +76,26 @@ def _build_parser() -> argparse.ArgumentParser:
         type=int,
         default=None,
         help="Maximum number of worker threads. Defaults to min(pages, cpu*2).",
+    )
+    parser.add_argument(
+        "--ocr-backend",
+        choices=["tesseract", "easyocr", "auto"],
+        default=DEFAULT_OCR_BACKEND,
+        help=(
+            "OCR backend to use. 'tesseract' is the default, 'easyocr' is "
+            "optional, and 'auto' lets Docling choose based on the environment."
+        ),
+    )
+    parser.add_argument(
+        "--ocr-language",
+        dest="ocr_languages",
+        action="append",
+        default=None,
+        help=(
+            "OCR language code, e.g. 'de' or 'de,en'. Repeat the flag for "
+            "multiple codes. Default depends on backend (tesseract: de, easyocr: de,fr). Use 'auto' to delegate "
+            "OCR backend/language selection to Docling."
+        ),
     )
     parser.add_argument(
         "--no-epub",
@@ -81,6 +130,18 @@ def main() -> None:
     if args.workers is not None and args.workers < 1:
         parser.error("--workers must be at least 1")
 
+    try:
+        ocr_languages = _parse_ocr_languages(args.ocr_languages)
+    except ValueError as exc:
+        parser.error(str(exc))
+
+    if args.ocr_backend == "auto" and ocr_languages not in (None, "auto"):
+        parser.error("--ocr-backend auto does not accept explicit --ocr-language values")
+    if args.ocr_backend in {"tesseract", "easyocr"} and ocr_languages == "auto":
+        parser.error(
+            "--ocr-language auto requires --ocr-backend auto (or omit --ocr-backend)"
+        )
+
     output_dir = directory / OUTPUT_DIRNAME
     max_workers = args.workers
     if max_workers is None:
@@ -88,11 +149,25 @@ def main() -> None:
 
     print(f"Markdown output directory: {output_dir}")
     print(f"Processing {len(image_files)} image(s) with up to {max_workers} worker(s)")
+    print(f"OCR backend: {args.ocr_backend}")
+    if ocr_languages == "auto":
+        print("OCR language mode: auto (Docling backend auto selection)")
+    elif ocr_languages:
+        print(f"OCR languages: {', '.join(ocr_languages)}")
+    else:
+        if args.ocr_backend == "easyocr":
+            print("OCR languages: de, fr (default for easyocr)")
+        elif args.ocr_backend == "tesseract":
+            print("OCR languages: de (default for tesseract)")
+        else:
+            print("OCR languages: backend default (auto mode)")
 
     results = extract_pages(
         image_files,
         output_dir,
         max_workers=max_workers,
+        ocr_backend=args.ocr_backend,
+        ocr_languages=ocr_languages,
         progress_callback=_print_result,
     )
 

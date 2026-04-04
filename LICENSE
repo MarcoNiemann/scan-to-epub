@@ -20,6 +20,7 @@ Third-party dependency license mapping
 --------------------------------------
 
 - docling: MIT
+- easyocr: Apache-2.0
 - streamlit: Apache-2.0
 - Markdown (python-markdown): BSD-3-Clause
 - EbookLib: AGPL-3.0-or-later

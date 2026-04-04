@@ -11,6 +11,24 @@ from scan_to_epub import (
     extract_pages,
     find_images,
 )
+from scan_to_epub.config import DEFAULT_OCR_BACKEND
+
+
+def _resolve_ocr_languages(mode: str, language_codes_text: str) -> str | list[str] | None:
+    """Translate Streamlit OCR controls to extractor input."""
+    if mode == "German (default)":
+        return None
+    if mode == "Auto detect":
+        return "auto"
+
+    language_codes = [
+        code.strip().lower() for code in language_codes_text.split(",") if code.strip()
+    ]
+    if not language_codes:
+        raise ValueError(
+            "Enter at least one OCR language code or switch back to the default."
+        )
+    return language_codes
 
 
 def _list_subdirectories(directory: Path) -> list[Path]:
@@ -117,6 +135,31 @@ epub_option = st.checkbox(
     value=True,
 )
 
+ocr_mode = st.radio(
+    "OCR language",
+    options=["German (default)", "Explicit language codes", "Auto detect"],
+    help=(
+        "German default is backend-specific: tesseract uses de, easyocr uses "
+        "de+fr. Auto detect delegates OCR backend selection to Docling."
+    ),
+)
+backend_options = ["tesseract", "easyocr", "auto"]
+ocr_backend = st.selectbox(
+    "OCR backend",
+    options=backend_options,
+    index=backend_options.index(DEFAULT_OCR_BACKEND),
+    help=(
+        "Choose the OCR engine. Tesseract is the default. EasyOCR is available "
+        "as an optional backend. Auto lets Docling pick based on your system."
+    ),
+)
+ocr_language_codes = st.text_input(
+    "OCR language codes",
+    value="de",
+    disabled=ocr_mode != "Explicit language codes",
+    help="Comma-separated language codes, for example: de or de,en.",
+)
+
 st.divider()
 
 # ── Extraction ────────────────────────────────────────────────────────────────
@@ -124,6 +167,19 @@ can_start = bool(directory_input and output_input)
 if st.button("Start extraction", disabled=not can_start):
     directory = Path(directory_input)
     output_dir = Path(output_input)
+
+    try:
+        ocr_languages = _resolve_ocr_languages(ocr_mode, ocr_language_codes)
+    except ValueError as exc:
+        st.error(str(exc))
+        st.stop()
+
+    if ocr_backend == "auto" and ocr_languages not in (None, "auto"):
+        st.error("OCR backend 'auto' does not accept explicit OCR language codes.")
+        st.stop()
+    if ocr_backend in {"tesseract", "easyocr"} and ocr_languages == "auto":
+        st.error("OCR language mode 'Auto detect' requires OCR backend 'auto'.")
+        st.stop()
 
     if not directory.is_dir():
         st.error(f"Input folder '{directory}' is not a valid directory.")
@@ -142,6 +198,18 @@ if st.button("Start extraction", disabled=not can_start):
             f"Found **{len(image_files)}** image(s). "
             f"Output will be saved to `{output_dir}`."
         )
+        if ocr_languages == "auto":
+            st.caption("OCR mode: auto detect via Docling.")
+        elif ocr_languages:
+            st.caption(f"OCR languages: {', '.join(ocr_languages)}")
+        else:
+            if ocr_backend == "easyocr":
+                st.caption("OCR languages: de, fr (default for easyocr)")
+            elif ocr_backend == "tesseract":
+                st.caption("OCR languages: de (default for tesseract)")
+            else:
+                st.caption("OCR languages: backend default (auto mode)")
+        st.caption(f"OCR backend: {ocr_backend}")
 
         progress_bar = st.progress(0, text="Starting…")
         results_container = st.container()
@@ -161,7 +229,13 @@ if st.button("Start extraction", disabled=not can_start):
                 else:
                     st.error(f"❌ {result.image_name}: {result.error}")
 
-        results = extract_pages(image_files, output_dir, progress_callback=_on_result)
+        results = extract_pages(
+            image_files,
+            output_dir,
+            ocr_backend=ocr_backend,
+            ocr_languages=ocr_languages,
+            progress_callback=_on_result,
+        )
         progress_bar.progress(1.0, text="Done!")
         st.success(f"All pages saved to `{output_dir}`.")
 

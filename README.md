@@ -10,7 +10,9 @@ As of now this is more of a hobby project and should not be used for any product
 
 ## Features
 
-- OCR extraction from image folders using `docling`.
+- OCR extraction from image folders using `docling` with selectable backends (`tesseract` default, optional `easyocr`, or `auto`).
+- German OCR by default, with backend-specific defaults (tesseract: de, easyocr: de+fr), plus optional explicit language codes or a Docling auto-detect mode.
+- High-quality OCR defaults for scanned pages: higher render resolution and full-page OCR.
 - Parallel image processing for faster extraction.
 - Per-page Markdown output (`<image-name>.md`).
 - Combined Markdown output in source page order.
@@ -34,11 +36,68 @@ The extractor currently scans these file extensions:
 ### Requirements
 
 - Python `>= 3.11`
+- Tesseract OCR runtime (default OCR backend)
+
+### Install Tesseract + Language Data
+
+The default backend is `tesseract`, so install the engine and language packs
+before first extraction.
+
+#### macOS (Homebrew)
+
+```bash
+brew install tesseract tesseract-lang
+```
+
+#### Linux (apt-get, Debian/Ubuntu)
+
+```bash
+sudo apt-get update
+sudo apt-get install -y tesseract-ocr tesseract-ocr-deu tesseract-ocr-fra tesseract-ocr-eng tesseract-ocr-spa
+```
+
+If the Latin package is available in your distro repo, install it too:
+
+```bash
+sudo apt-get install -y tesseract-ocr-lat
+```
+
+#### Windows
+
+Option A (`winget`):
+
+```powershell
+winget install UB-Mannheim.TesseractOCR
+```
+
+Option B (`choco`):
+
+```powershell
+choco install tesseract
+```
+
+After installation, ensure these language files are available in your
+Tesseract `tessdata` directory:
+
+- `deu.traineddata` (German)
+- `fra.traineddata` (French, optional but recommended for mixed content)
+- `eng.traineddata` (English)
+- `spa.traineddata` (Spanish)
+- `lat.traineddata` (Latin, if available)
+
+You can verify installed languages with:
+
+```bash
+tesseract --list-langs
+```
 
 ### Option A: Install with `uv` (recommended)
 
 ```bash
 uv sync
+```
+
+### Option B: Install with `venv` and `pip`
 
 ```bash
 python -m venv .venv
@@ -59,11 +118,13 @@ streamlit run app.py
 1. Pick the **Input folder** (where your scanned images are).
 2. Pick the **Output folder**.
 3. Optional: click **Copy from input folder** in the output block.
-4. Leave options enabled to produce:
+4. Keep **OCR backend** on **tesseract** (default), switch to **easyocr** if needed.
+5. Keep **OCR language** on **German (default)** for the common case, enter explicit language codes when needed, or switch to **Auto detect** together with backend `auto`.
+6. Leave options enabled to produce:
    - per-page Markdown
    - combined Markdown
    - EPUB
-5. Click **Start extraction**.
+7. Click **Start extraction**.
 
 ## Command Line Usage
 
@@ -74,6 +135,17 @@ You can also run conversion from the terminal.
 ```bash
 scan-to-epub /path/to/images
 ```
+
+```bash
+scan-to-epub /path/to/images --ocr-language de
+scan-to-epub /path/to/images --ocr-language de,en
+scan-to-epub /path/to/images --ocr-language auto
+scan-to-epub /path/to/images --ocr-backend easyocr --ocr-language de,fr
+```
+
+### Run via Python directly
+
+```bash
 python cli.py /path/to/images
 ```
 
@@ -82,16 +154,28 @@ python cli.py /path/to/images
 ```text
 --no-combine             Skip combined markdown output.
 --combined-output NAME   Combined markdown filename (default: combined.md).
+--ocr-backend NAME       OCR backend: tesseract (default), easyocr, auto.
+--ocr-language CODE      OCR language code, comma-separated codes, or 'auto'.
 --title TITLE            EPUB title metadata.
 ```
-This project is licensed under `AGPL-3.0-or-later`. See `LICENSE`.
 
-Reason: the project uses `EbookLib`, which is licensed under AGPLv3+.
 ### Important behavior
 
 - EPUB is created only from the combined Markdown file.
 - If EPUB is requested and combined Markdown does not exist yet, the tool creates it first.
 - CLI currently writes outputs to: `<input-folder>/extracted_markdown`.
+- OCR backend defaults to `tesseract`.
+- Default OCR language is backend-specific: `tesseract -> de`, `easyocr -> de,fr`.
+- `easyocr` remains available via `--ocr-backend easyocr` or the UI backend selector.
+- `--ocr-backend auto` delegates OCR backend selection to Docling, so behavior may vary by platform.
+- `--ocr-language auto` is intended for backend `auto`.
+- The default OCR profile favors extraction quality over speed and uses higher-resolution page rendering plus full-page OCR.
+
+## License
+
+This project is licensed under `AGPL-3.0-or-later`. See `LICENSE`.
+
+Reason: the project uses `EbookLib`, which is licensed under AGPLv3+.
 
 ## Output Structure
 
@@ -139,6 +223,7 @@ pip install -e .
 ### Architecture notes
 
 - `extract_pages(...)` performs OCR in parallel and writes per-page Markdown.
+- `extract_pages(..., ocr_languages=...)` defaults to German, accepts explicit language codes, and supports `"auto"` for Docling's automatic OCR mode.
 - `combine_pages(...)` merges successful page outputs in source image order.
 - `convert_markdown_to_epub(...)` takes a single Markdown file and produces EPUB.
 
@@ -157,6 +242,12 @@ Reinstall dependencies:
 ```bash
 pip install -e .
 ```
+
+### First run takes longer
+
+`EasyOCR` downloads model data on first use. That initial run is slower, but later runs reuse the cached models.
+
+The current default OCR profile also renders pages at higher resolution to improve recognition quality, so processing can be slower and use more memory than before.
 
 ### Streamlit not found
 
