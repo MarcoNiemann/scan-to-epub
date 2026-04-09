@@ -112,6 +112,22 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Optional title metadata for the generated EPUB.",
     )
+    parser.add_argument(
+        "--author",
+        default=None,
+        help="Optional author metadata for the generated EPUB.",
+    )
+    parser.add_argument(
+        "--publisher",
+        default=None,
+        help="Optional publisher metadata for the generated EPUB.",
+    )
+    parser.add_argument(
+        "--publication-year",
+        type=int,
+        default=None,
+        help="Optional publication year metadata for the generated EPUB (e.g. 1872).",
+    )
     return parser
 
 
@@ -129,6 +145,8 @@ def main() -> None:
 
     if args.workers is not None and args.workers < 1:
         parser.error("--workers must be at least 1")
+    if args.publication_year is not None and args.publication_year < 1:
+        parser.error("--publication-year must be at least 1")
 
     try:
         ocr_languages = _parse_ocr_languages(args.ocr_languages)
@@ -196,6 +214,9 @@ def main() -> None:
             combined_file,
             output_file=output_dir / args.epub_output,
             title=args.title or directory.name,
+            author=args.author,
+            publisher=args.publisher,
+            publication_year=args.publication_year,
         )
         print(f"EPUB saved to: {epub_file}")
 

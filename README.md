@@ -124,6 +124,7 @@ streamlit run app.py
    - per-page Markdown
    - combined Markdown
    - EPUB
+7. Optional: set EPUB metadata (title, author, publisher, publication year).
 7. Click **Start extraction**.
 
 ## Command Line Usage
@@ -141,6 +142,7 @@ scan-to-epub /path/to/images --ocr-language de
 scan-to-epub /path/to/images --ocr-language de,en
 scan-to-epub /path/to/images --ocr-language auto
 scan-to-epub /path/to/images --ocr-backend easyocr --ocr-language de,fr
+scan-to-epub /path/to/images --title "Book Title" --author "Author Name" --publisher "Publisher" --publication-year 1872
 ```
 
 ### Run via Python directly
@@ -157,6 +159,9 @@ python cli.py /path/to/images
 --ocr-backend NAME       OCR backend: tesseract (default), easyocr, auto.
 --ocr-language CODE      OCR language code, comma-separated codes, or 'auto'.
 --title TITLE            EPUB title metadata.
+--author AUTHOR          EPUB author metadata.
+--publisher PUBLISHER    EPUB publisher metadata.
+--publication-year YEAR  EPUB publication year metadata.
 ```
 
 ### Important behavior

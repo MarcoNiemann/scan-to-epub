@@ -58,6 +58,25 @@ UI_TEXT: dict[str, dict[str, str]] = {
         "en": "Convert the combined markdown file to EPUB",
         "de": "Zusammengefuehrte Markdown-Datei in EPUB umwandeln",
     },
+    "epub_metadata": {
+        "en": "EPUB metadata",
+        "de": "EPUB-Metadaten",
+    },
+    "epub_title": {"en": "Book title", "de": "Buchtitel"},
+    "epub_author": {"en": "Author", "de": "Autor"},
+    "epub_publisher": {"en": "Publisher", "de": "Verlag"},
+    "epub_publication_year": {
+        "en": "Publication year",
+        "de": "Erscheinungsjahr",
+    },
+    "epub_metadata_help": {
+        "en": "Optional metadata written into the generated EPUB.",
+        "de": "Optionale Metadaten fuer die erzeugte EPUB-Datei.",
+    },
+    "err_publication_year": {
+        "en": "Publication year must be a positive integer (for example 1872).",
+        "de": "Das Erscheinungsjahr muss eine positive ganze Zahl sein (zum Beispiel 1872).",
+    },
     "ocr_language": {"en": "OCR language", "de": "OCR-Sprache"},
     "ocr_mode_default": {"en": "German (default)", "de": "Deutsch (Standard)"},
     "ocr_mode_explicit": {
@@ -195,6 +214,19 @@ def _resolve_ocr_languages(
     return language_codes
 
 
+def _resolve_publication_year(value: str, ui_language: str) -> int | None:
+    """Validate an optional publication year from Streamlit input."""
+    cleaned = value.strip()
+    if not cleaned:
+        return None
+    if not cleaned.isdigit():
+        raise ValueError(_t("err_publication_year", ui_language))
+    year = int(cleaned)
+    if year < 1:
+        raise ValueError(_t("err_publication_year", ui_language))
+    return year
+
+
 def _list_subdirectories(directory: Path) -> list[Path]:
     """Return readable direct child directories sorted by name."""
     try:
@@ -316,6 +348,31 @@ epub_option = st.checkbox(
     _t("epub_checkbox", ui_language),
     value=True,
 )
+st.caption(_t("epub_metadata_help", ui_language))
+
+metadata_col_1, metadata_col_2 = st.columns(2)
+with metadata_col_1:
+    epub_title = st.text_input(
+        _t("epub_title", ui_language),
+        value="",
+        disabled=not epub_option,
+    )
+    epub_author = st.text_input(
+        _t("epub_author", ui_language),
+        value="",
+        disabled=not epub_option,
+    )
+with metadata_col_2:
+    epub_publisher = st.text_input(
+        _t("epub_publisher", ui_language),
+        value="",
+        disabled=not epub_option,
+    )
+    epub_publication_year = st.text_input(
+        _t("epub_publication_year", ui_language),
+        value="",
+        disabled=not epub_option,
+    )
 
 ocr_mode = st.radio(
     _t("ocr_language", ui_language),
@@ -353,6 +410,10 @@ if st.button(_t("start_extraction", ui_language), disabled=not can_start):
         ocr_languages = _resolve_ocr_languages(
             ocr_mode,
             ocr_language_codes,
+            ui_language,
+        )
+        publication_year = _resolve_publication_year(
+            epub_publication_year,
             ui_language,
         )
     except ValueError as exc:
@@ -468,6 +529,9 @@ if st.button(_t("start_extraction", ui_language), disabled=not can_start):
             epub_file = convert_markdown_to_epub(
                 combined_file,
                 output_file=output_dir / "combined.epub",
-                title=directory.name,
+                title=epub_title.strip() or directory.name,
+                author=epub_author.strip() or None,
+                publisher=epub_publisher.strip() or None,
+                publication_year=publication_year,
             )
             st.success(_t("success_epub_saved", ui_language, epub_file=epub_file))
