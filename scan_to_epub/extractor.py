@@ -375,9 +375,9 @@ def combine_pages(
         result = result_map.get(image_file.name)
         if result is None or not result.markdown_text:
             continue
-        parts.append(f"<!-- {image_file.name} -->\n\n{result.markdown_text}")
+        parts.append(f"{result.markdown_text}")
 
-    combined = "\n\n---\n\n".join(parts)
+    combined = "".join(parts)
     output_file = output_dir / output_filename
     output_file.write_text(combined, encoding="utf-8")
     return output_file
